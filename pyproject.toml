@@ -1,7 +1,7 @@
 [project]
 name = "witchery"
 dynamic = ["version"]
-description = "Convert pydal define_tables to SQL using pydal's CREATE TABLE logic. (supporting package for pydal2sql)"
+description = "Witchery is a powerful Python library that offers various functionalities for code analysis and modification."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
