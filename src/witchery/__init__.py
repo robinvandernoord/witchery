@@ -264,7 +264,7 @@ def add_function_call(code: str, function_call: str, args: typing.Iterable[str] 
     return ast.unparse(tree)
 
 
-def find_variables(code_str: str, with_builtins: bool=True) -> tuple[set[str], set[str]]:
+def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str], set[str]]:
     """
     Finds all used and defined variables in the given code string.
 
@@ -333,7 +333,9 @@ def find_variables(code_str: str, with_builtins: bool=True) -> tuple[set[str], s
     # manually rewritten (2.19s for 10k):
     traverse_ast(tree, collect_everything)
 
-    all_variables = defined_variables | imported_modules | loop_variables | imported_names | (BUILTINS if with_builtins else set())
+    all_variables = (
+        defined_variables | imported_modules | loop_variables | imported_names | (BUILTINS if with_builtins else set())
+    )
 
     return used_variables, all_variables
 
