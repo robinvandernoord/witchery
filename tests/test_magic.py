@@ -36,20 +36,24 @@ if toble := True:
    print(toble)
 """
 
+
 def test_find_defined():
     # defined: `variable = value` in code (so not imported or in loop etc.)
     all_variables = find_defined_variables(CODE_STRING)
 
     assert all_variables == {"a", "b", "d", "f", "db"}
 
+
 def test_find_missing():
     # Example usage:
     missing_variables = find_missing_variables(CODE_STRING)
     assert missing_variables == {"c", "xyz", "ceil", "e", "f"}, missing_variables
 
+
 def test_find_local_imports():
     assert has_local_imports("from .math import floor")
     assert not has_local_imports("from math import floor")
+
 
 def test_remove_import():
     code = textwrap.dedent("""
@@ -61,6 +65,7 @@ def test_remove_import():
 
     assert "fake_module" not in new_code
     assert "import typing" in new_code
+
 
 def test_remove_local_imports():
     code = textwrap.dedent("""
@@ -75,6 +80,7 @@ def test_remove_local_imports():
     assert "method" not in new_code
     assert "typing" in new_code
     assert "floor" in new_code
+
 
 def test_find_function_to_call():
     code = textwrap.dedent("""
@@ -93,6 +99,7 @@ def test_find_function_to_call():
     assert find_function_to_call(code, "doesnt_exist") is None
     assert find_function_to_call(code, "doesnt_exist()") is None
 
+
 def test_extract_function_details():
     assert extract_function_details("my_method", default_args=[]) == ("my_method", [])
     assert extract_function_details("my_method()", default_args=[]) == ("my_method", [])
@@ -100,10 +107,13 @@ def test_extract_function_details():
     assert extract_function_details("my_method", default_args=["arg1"]) == ("my_method", ["arg1"])
     assert extract_function_details("my_method()", default_args=["arg1"]) == ("my_method", ["arg1"])
 
-    assert extract_function_details("my_method(first, 'second')", default_args=[]) == ("my_method", ["first", "'second'"])
-    assert extract_function_details("my_method(first, 'second')", default_args=["arg1"]) == ("my_method", ["first", "'second'"])
+    assert extract_function_details("my_method(first, 'second')", default_args=[]) == (
+    "my_method", ["first", "'second'"])
+    assert extract_function_details("my_method(first, 'second')", default_args=["arg1"]) == (
+    "my_method", ["first", "'second'"])
 
     assert extract_function_details("syntax_error(") == (None, [])
+
 
 def test_add_function_call():
     code = textwrap.dedent("""
@@ -121,6 +131,31 @@ def test_add_function_call():
     """)
 
     assert add_function_call(code, "main", args=["'World'"]).strip() == target.strip()
+
+    # duplicate functions:
+    code = textwrap.dedent("""
+    def main(arg: str):
+        print('hi', arg)
+
+    def main(arg: str):
+        print('another one')
+
+    print('the end')
+    """)
+
+    target = textwrap.dedent("""
+    def main(arg: str):
+        print('hi', arg)
+    main('World')
+
+    def main(arg: str):
+        print('another one')
+    main('World')
+    print('the end')
+    """)
+
+    assert add_function_call(code, "main", args=["'World'"], multiple=True).strip() == target.strip()
+
 
 def test_fix_missing():
     code = generate_magic_code({"bla"})

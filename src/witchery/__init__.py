@@ -227,7 +227,9 @@ def extract_function_details(
     return None, []
 
 
-def add_function_call(code: str, function_call: str, args: typing.Iterable[str] = DEFAULT_ARGS) -> str:
+def add_function_call(
+    code: str, function_call: str, args: typing.Iterable[str] = DEFAULT_ARGS, multiple: bool = False
+) -> str:
     """
     Adds a function call to the given code.
 
@@ -235,6 +237,7 @@ def add_function_call(code: str, function_call: str, args: typing.Iterable[str] 
         code (str): The code to which to add the function call.
         function_call (str): The function call string.
         args (Iterable, optional): The arguments for the function call.
+        multiple (bool, optional): If True, add a call after every function with the specified name.
 
     Returns:
         str: The code after adding the function call.
@@ -259,7 +262,8 @@ def add_function_call(code: str, function_call: str, args: typing.Iterable[str] 
     for i, node in enumerate(tree.body):
         if isinstance(node, ast.FunctionDef) and node.name == function_name:
             tree.body.insert(i + 1, func_call)
-            break
+            if not multiple:
+                break
 
     return ast.unparse(tree)
 
