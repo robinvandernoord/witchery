@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.1 (2023-07-31)
+
+### Fix
+
+* Add_function_call can now deal with redefined functions ([`fcdee35`](https://github.com/robinvandernoord/witchery/commit/fcdee35c946e13832ce8b5ffb58cd7486d30ceec))
+
 ## v0.1.0 (2023-07-31)
 
 ### Feature
