@@ -132,7 +132,7 @@ def test_fix_missing():
 def test_remove_specific_variables():
     code = textwrap.dedent(
         """
-    db = 1
+    db = DAL()
     def database():
         return True
     
@@ -143,5 +143,6 @@ def test_remove_specific_variables():
     new_code = remove_specific_variables(code)
     assert "print('hi')" in new_code
     assert "db" not in new_code
+    assert "DAL" not in new_code
     assert "def database" not in new_code
     assert "my_database" in new_code

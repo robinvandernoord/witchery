@@ -20,7 +20,11 @@ BUILTINS = set(builtins.__dict__.keys())
 
 def traverse_ast(node: ast.AST, variable_collector: typing.Callable[[ast.AST], None]) -> None:
     """
-    Calls variable_collector on each node recursively.
+    Recursively traverses the given AST node and applies the variable collector function on each node.
+
+    Args:
+        node (ast.AST): The AST node to traverse.
+        variable_collector (Callable): The function to apply on each node.
     """
     variable_collector(node)
     for child in ast.iter_child_nodes(node):
@@ -28,6 +32,21 @@ def traverse_ast(node: ast.AST, variable_collector: typing.Callable[[ast.AST], N
 
 
 def find_defined_variables(code_str: str) -> set[str]:
+    """
+    Parses the given Python code and finds all variables that are defined within.
+
+    A defined variable refers to any variable that is assigned a value in the code through direct assignment
+    (e.g. `x = 5`). Other assignments such as through for-loops are ignored.
+    Please use `find_variables` if more variable info is needed.
+
+    This function does not account for scope - it will find variables defined anywhere in the provided code string.
+
+    Args:
+        code_str (str): A string of Python code.
+
+    Returns:
+        set[str]: A set of variable names that are defined within the provided Python code.
+    """
     tree: ast.Module = ast.parse(code_str)
 
     variables: set[str] = set()
@@ -43,37 +62,43 @@ def find_defined_variables(code_str: str) -> set[str]:
 
 
 def remove_specific_variables(code: str, to_remove: typing.Iterable[str] = ("db", "database")) -> str:
-    # Parse the code into an Abstract Syntax Tree (AST) - by ChatGPT
+    """
+    Removes specific variables from the given code.
+
+    Args:
+        code (str): The code from which to remove variables.
+        to_remove (Iterable): An iterable of variable names to be removed.
+
+    Returns:
+        str: The code after removing the specified variables.
+    """
+    # Parse the code into an Abstract Syntax Tree (AST)
     tree = ast.parse(code)
 
     # Function to check if a variable name is 'db' or 'database'
     def should_remove(var_name: str) -> bool:
         return var_name in to_remove
 
-    # Function to recursively traverse the AST and remove definitions of 'db' or 'database'
-    def remove_db_and_database_defs_rec(node: ast.AST) -> typing.Optional[ast.AST]:
+    # Function to recursively traverse the AST and remove lines with 'db' or 'database' definitions
+    def remove_desired_variable_refs(node: ast.AST) -> typing.Optional[ast.AST]:
         if isinstance(node, ast.Assign):
-            # Check if the assignment targets contain 'db' or 'database'
-            new_targets = [
-                target for target in node.targets if not (isinstance(target, ast.Name) and should_remove(target.id))
-            ]
-            node.targets = new_targets
+            # Check if any of the assignment targets contain 'db' or 'database'
+            if any(isinstance(target, ast.Name) and should_remove(target.id) for target in node.targets):
+                return None
 
         elif isinstance(node, (ast.FunctionDef, ast.ClassDef)) and should_remove(node.name):
-            # Check if function or class name is 'db' or 'database'
             return None
 
-        for child_node in ast.iter_child_nodes(node):
-            # Recursively process child nodes
-            new_child_node = remove_db_and_database_defs_rec(child_node)
+        # doesn't work well without list() !!!
+        for child_node in list(ast.iter_child_nodes(node)):
+            new_child_node = remove_desired_variable_refs(child_node)
             if new_child_node is None and hasattr(node, "body"):
-                # If the child node was removed, remove it from the parent's body
                 node.body.remove(child_node)
 
         return node
 
     # Traverse the AST to remove 'db' and 'database' definitions
-    new_tree = remove_db_and_database_defs_rec(tree)
+    new_tree = remove_desired_variable_refs(tree)
 
     if not new_tree:  # pragma: no cover
         return ""
@@ -83,6 +108,16 @@ def remove_specific_variables(code: str, to_remove: typing.Iterable[str] = ("db"
 
 
 def has_local_imports(code: str) -> bool:
+    """
+    Checks if the given code has local imports.
+
+    Args:
+        code (str): The code to check for local imports.
+
+    Returns:
+        bool: True if local imports are found, False otherwise.
+    """
+
     class FindLocalImports(ast.NodeVisitor):
         def visit_ImportFrom(self, node: ast.ImportFrom) -> bool:
             if node.level > 0:  # This means it's a relative import
@@ -95,6 +130,16 @@ def has_local_imports(code: str) -> bool:
 
 
 def remove_import(code: str, module_name: typing.Optional[str]) -> str:
+    """
+    Removes the import of a specific module from the given code.
+
+    Args:
+        code (str): The code from which to remove the import.
+        module_name (str, optional): The name of the module to remove.
+
+    Returns:
+        str: The code after removing the import of the specified module.
+    """
     tree = ast.parse(code)
     new_body = [
         node
@@ -108,6 +153,16 @@ def remove_import(code: str, module_name: typing.Optional[str]) -> str:
 
 
 def remove_local_imports(code: str) -> str:
+    """
+    Removes all local imports from the given code.
+
+    Args:
+        code (str): The code from which to remove local imports.
+
+    Returns:
+        str: The code after removing all local imports.
+    """
+
     class RemoveLocalImports(ast.NodeTransformer):
         def visit_ImportFrom(self, node: ast.ImportFrom) -> typing.Optional[ast.ImportFrom]:
             if node.level > 0:  # This means it's a relative import
@@ -119,14 +174,17 @@ def remove_local_imports(code: str) -> str:
     return ast.unparse(tree)
 
 
-# def find_function_to_call(code: str, target: str) -> typing.Optional[ast.FunctionDef]:
-#     tree = ast.parse(code)
-#     for node in ast.walk(tree):
-#         if isinstance(node, ast.FunctionDef) and node.name == target:
-#             return node
-
-
 def find_function_to_call(code: str, function_call_hint: str) -> typing.Optional[str]:
+    """
+    Finds the function to call in the given code based on the function call hint.
+
+    Args:
+        code (str): The code in which to find the function.
+        function_call_hint (str): The hint for the function call.
+
+    Returns:
+        str, optional: The name of the function to call if found, None otherwise.
+    """
     function_name = function_call_hint.split("(")[0]  # Extract function name from hint
     tree = ast.parse(code)
     return next(
@@ -135,43 +193,22 @@ def find_function_to_call(code: str, function_call_hint: str) -> typing.Optional
     )
 
 
-# def add_function_call(code: str, function_name: str) -> str:
-#     tree = ast.parse(code)
-#     # Create a function call node
-#     func_call = ast.Expr(
-#         value=ast.Call(
-#             func=ast.Name(id=function_name, ctx=ast.Load()),
-#             args=[ast.Name(id='db', ctx=ast.Load())],
-#             keywords=[]
-#         )
-#     )
-#
-#     # Insert the function call right after the function definition
-#     for i, node in enumerate(tree.body):
-#         if isinstance(node, ast.FunctionDef) and node.name == function_name:
-#             tree.body.insert(i + 1, func_call)
-#             break
-#
-#     return ast.unparse(tree)
-
-# def extract_function_details(function_call):
-#     function_name = function_call.split('(')[0]  # Extract function name from hint
-#     if '(' in function_call:
-#         try:
-#             tree = ast.parse(function_call)
-#             for node in ast.walk(tree):
-#                 if isinstance(node, ast.Call):
-#                     return node.func.id, [ast.unparse(arg) for arg in node.args]
-#         except SyntaxError:
-#             pass
-#     return function_name, []
-
 DEFAULT_ARGS = ("db",)
 
 
 def extract_function_details(
     function_call: str, default_args: typing.Iterable[str] = DEFAULT_ARGS
 ) -> tuple[str | None, list[str]]:
+    """
+    Extracts the function name and arguments from the function call string.
+
+    Args:
+        function_call (str): The function call string.
+        default_args (Iterable, optional): The default arguments for the function.
+
+    Returns:
+        tuple: A tuple containing the function name and a list of arguments.
+    """
     function_name = function_call.split("(")[0]  # Extract function name from hint
     if "(" not in function_call:
         return function_name, list(default_args)
@@ -191,6 +228,17 @@ def extract_function_details(
 
 
 def add_function_call(code: str, function_call: str, args: typing.Iterable[str] = DEFAULT_ARGS) -> str:
+    """
+    Adds a function call to the given code.
+
+    Args:
+        code (str): The code to which to add the function call.
+        function_call (str): The function call string.
+        args (Iterable, optional): The arguments for the function call.
+
+    Returns:
+        str: The code after adding the function call.
+    """
     function_name, args = extract_function_details(function_call, default_args=args)
 
     def arg_value(arg: str) -> ast.Name:
@@ -216,9 +264,16 @@ def add_function_call(code: str, function_call: str, args: typing.Iterable[str] 
     return ast.unparse(tree)
 
 
-def find_variables(code_str: str) -> tuple[set[str], set[str]]:
+def find_variables(code_str: str, with_builtins: bool=True) -> tuple[set[str], set[str]]:
     """
-    Look through the source code in code_str and try to detect using ast parsing which variables are undefined.
+    Finds all used and defined variables in the given code string.
+
+    Args:
+        code_str (str): The code string to parse for variables.
+        with_builtins (bool): include Python builtins?
+
+    Returns:
+        tuple: A tuple containing sets of used and defined variables.
     """
     # Partly made by ChatGPT
     code_str = textwrap.dedent(code_str)
@@ -278,21 +333,37 @@ def find_variables(code_str: str) -> tuple[set[str], set[str]]:
     # manually rewritten (2.19s for 10k):
     traverse_ast(tree, collect_everything)
 
-    all_variables = defined_variables | imported_modules | loop_variables | imported_names | BUILTINS
+    all_variables = defined_variables | imported_modules | loop_variables | imported_names | (BUILTINS if with_builtins else set())
 
     return used_variables, all_variables
 
 
 def find_missing_variables(code: str) -> set[str]:
+    """
+    Finds and returns all missing variables in the given code.
+
+    Args:
+        code (str): The code to check for missing variables.
+
+    Returns:
+        set: A set of names of missing variables.
+    """
     used_variables, defined_variables = find_variables(code)
     return {var for var in used_variables if var not in defined_variables}
 
 
 def generate_magic_code(missing_vars: set[str]) -> str:
     """
-    After finding missing vars, fill them in with an object that does nothing except return itself or an empty string.
+    Generates code to define missing variables with a do-nothing object.
 
+    After finding missing vars, fill them in with an object that does nothing except return itself or an empty string.
     This way, it's least likely to crash (when used as default or validator in pydal, don't use this for running code!).
+
+    Args:
+        missing_vars (set): The set of missing variable names.
+
+    Returns:
+        str: The generated code.
     """
     extra_code = """
         class Empty:

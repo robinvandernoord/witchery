@@ -1,215 +1,236 @@
-# pydal2sql
+# Witchery
 
+**A Python Package for Code Analysis and Modification**
 
-[![PyPI - Version](https://img.shields.io/pypi/v/pydal2sql.svg)](https://pypi.org/project/pydal2sql)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pydal2sql.svg)](https://pypi.org/project/pydal2sql)  
+Witchery is a powerful Python library that offers various functionalities for code analysis and modification. It
+provides tools to traverse Abstract Syntax Trees (AST) of Python code and perform tasks such as finding defined
+variables, removing specific variables, identifying local imports, adding function calls, and much more.
+
+Whether you need to analyze code for missing variables, remove certain variables from your codebase, or perform code
+transformations, Witchery has you covered. It is a versatile utility for developers and programmers seeking to enhance
+their code analysis and modification capabilities.
+
+With Witchery, you can easily parse Python code, identify used and defined variables, handle imports, and generate code
+for missing variables, among other useful features. This package is designed to simplify code manipulation tasks and
+assist in creating cleaner and more efficient Python codebases.
+
+Features:
+
+- Find defined variables within Python code
+- Remove specific variables from code
+- Identify local imports in code
+- Remove imports of specific modules
+- Add function calls to existing code
+- Find missing variables in code
+- Generate ✨ magic ✨ code to define missing variables
+- and more!
+
+[![PyPI - Version](https://img.shields.io/pypi/v/witchery.svg)](https://pypi.org/project/witchery)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/witchery.svg)](https://pypi.org/project/witchery)  
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)  
-[![su6 checks](https://github.com/robinvandernoord/pydal2sql/actions/workflows/su6.yml/badge.svg?branch=development)](https://github.com/robinvandernoord/pydal2sql/actions)
+[![su6 checks](https://github.com/robinvandernoord/witchery/actions/workflows/su6.yml/badge.svg?branch=development)](https://github.com/robinvandernoord/witchery/actions)
 ![coverage.svg](coverage.svg)
 
 -----
 
-
-`pydal2sql` is a command line interface (CLI) tool that translates pydal `define_table` Table definitions into SQL
-statements. It supports different SQL dialects including SQLite, Postgres and MySQL. The tool generates
-both `CREATE TABLE` and `ALTER TABLE` SQL statements. It does this using pydal's own logic.
-
 ## Table of Contents
 
 - [Installation](#installation)
-- [Basic Usage](#basic-usage)
-  - [Create](#create)
-    - [Git Integration](#git-integration)
-    - [Options](#options)
-  - [Alter](#alter)
-  - [Global Options](#global-options)
-  - [Configuration](#configuration)
-  - [Magic](#-experimental-magic)
-- [As a Python Library](#as-a-python-library)
+- [Usage](#usage)
+- [Examples](#examples)
 - [License](#license)
 
 ## Installation
 
-```bash
-pip install pydal2sql
-# or
-pipx install pydal2sql
-```
-
-## Basic Usage
-
-### `CREATE`
-
-The following commands are supported:
-
-- `pydal2sql create [file-name]`: Translate the file into SQL statements.
-- `pydal2sql create [file-name]@[git-branch-or-commit-hash]`: Translate a specific version of the file into SQL
-  statements.
-- `pydal2sql create [file-name]@latest`: Translate the latest version of the file in git into SQL statements.
-- `pydal2sql create [file-name]@current`: Translate the current version of the file on disk into SQL statements.
-- `pydal2sql create` or `pydal2sql create -`: Prompts the user to input the table definitions via stdin.
-
-Bash pipe or redirect is also supported:
-
-- `cat [file-name] | pydal2sql create`
-- `pydal2sql create < [file-name]`
-
-#### Git Integration
-
-The tool allows you to specify a git branch or commit hash when translating a file. Using the 'latest' keyword will
-use the latest commit, and 'current' will use the file as it currently is on disk.
-
-#### Options
-
-- `--table`, `--tables`, `-t`: Specify which database tables to generate CREATE statements for (default is all).
-- `--db-type`, `--dialect`: Specify the SQL dialect to use (SQLite, Postgres, MySQL). The default is guessed from the
-  code or else the user is queried.
-- `--magic`: If variables are missing, this flag will insert variables with that name so the code does (probably) not
-  crash.
-- `--noop`: Doesn't create the migration code but only shows the Python code that would run to create it.
-
-### `ALTER`
-
-- `pydal2sql alter [file1] [file2]`: Generates the ALTER migration from the state in file1 to the state in file2.
-- `pydal2sql alter [file1]@[branch-or-commit-hash] [file2]@[branch-or-commit-hash]`: Compares the files at those
-  specific versions and generates the ALTER migration.
-
-Using `-` instead of a file name will prompt the user via stdin to paste the define tables code.
-
-### Global Options
-
-Global options that go before the subcommand:
-
-- `--verbosity`: Sets how verbose the program should be, with a number between 1 and 4 (default is 2).
-- `--config`: Path to a specific config toml file. Default is pyproject.toml at the key [tool.pydal2sql].
-- `--version`: Prints the CLI tool version and exits.
-- `--show-config`: Prints the currently used config and exits.
-
-Example:
+You can install `witchery` using pip:
 
 ```bash
-pydal2sql --verbosity 3 create
-pydal2sql --version
+pip install witchery
 ```
 
-### Configuration
+## Usage
 
-A configuration file (in toml) can be selected with `--config`. By default, `pyproject.toml` is used.
-In the configuration file, the following keys are supported under the [tool.pydal2sql] section:
+The `witchery` library provides several useful methods to work with Python code. Here are the main functions and their
+purposes:
 
-- `dialect`/`db-type`: Default database dialect to use.
-- `magic`: A boolean flag to use the `--magic` option (default is False).
-- `noop`: A boolean flag to use the `--noop` option (default is False).
-- `tables`: A list of table names to generate CREATE/ALTER statements for.
+1. `find_defined_variables(code_str: str) -> set[str]`: Parses the given Python code and finds all variables that are
+   defined within. It returns a set of variable names that are defined in the provided Python code.
 
-The CLI command options can overwrite the config values. For example, `--no-magic` will still set magic to False even if
-it's set to True in the config file.
+2. `remove_specific_variables(code: str, to_remove: typing.Iterable[str] = ("db", "database")) -> str`: Removes specific
+   variables from the given code. You can specify a list of variable names to be removed, and the function will return
+   the code after removing the specified variables.
 
-Example of the toml configuration:
+3. `has_local_imports(code: str) -> bool`: Checks if the given code has local imports. It returns True if local imports
+   are found, and False otherwise.
 
-```toml
-[tool.pydal2sql]
-dialect = "postgres" # postgres, mysql or sqlite
-magic = true
-noop = false
-tables = ["table1", "table2"]
-```
+4. `remove_import(code: str, module_name: typing.Optional[str]) -> str`: Removes the import of a specific module from
+   the given code. You can specify the name of the module to remove, and the function will return the code after
+   removing the import of the specified module.
 
-All keys are optional.
+5. `remove_local_imports(code: str) -> str`: Removes all local imports from the given code. It returns the code after
+   removing all local imports.
 
-### ⚠️ Experimental 🪄✨Magic🌟💻
+6. `find_function_to_call(code: str, function_call_hint: str) -> typing.Optional[str]`: Finds the function to call in
+   the given code based on the function call hint. It returns the name of the function to call if found, or None
+   otherwise.
 
-If you're copy-pasting some `define_table` statements which have validators or defaults that are defined elsewhere,
-the SQL generation could crash due to msising variables. However, if these variables are irrelevant to the samentics of
-the table definition (i.e. only used at runtime, not for the schema definition), you can now try the `--magic` flag.
+7. `extract_function_details(function_call: str, default_args: typing.Iterable[str] = DEFAULT_ARGS) -> tuple[str | None, list[str]]`:
+   Extracts the function name and arguments from the function call string. It returns a tuple containing the function
+   name and a list of arguments.
 
-This flag will replace all missing variables with a special `Empty` class, which does nothing but
-prevent `NameError`, `AttributeError` and `TypeError`s.   
+8. `add_function_call(code: str, function_call: str, args: typing.Iterable[str] = DEFAULT_ARGS) -> str`: Adds a function
+   call to the given code. You can specify the function call string and the arguments for the function call.
 
-`Magic` will also remove local imports and imports that could not be found.
+9. `find_variables(code_str: str) -> tuple[set[str], set[str]]`: Finds all used and defined variables in the given code
+   string. It returns a tuple containing sets of used and defined variables.
 
-This is of course not production-safe, so it shouldn't be used anywhere else.
+10. `find_missing_variables(code: str) -> set[str]`: Finds and returns all missing variables in the given code. It
+    returns a set of names of missing variables.
 
-#### TODO:
-The following patterns are currently not supported:
-- `def define_tables(db): ...`
+11. `generate_magic_code(missing_vars: set[str]) -> str`: Generates code to define missing variables with a do-nothing
+    object. After finding missing variables, it fills them in with an object that does nothing except return itself or
+    an empty string.
 
-## As a Python Library
-
-`pydal2sql` also exposes a `generate_sql` method that can perform the same actions on one (for CREATE) or two (for
-ALTER) `pydal.Table` objects when used within Python.
+## Examples
 
 ```python
-from pydal import DAL, Field
-from pydal2sql import generate_sql
+import witchery
 
-db = DAL(None, migrate=False)  # <- without running database or with a different type of database
+# Example 1: Find defined variables in code
+code = """
+x = 5
+y = 10
+z = x + y
+"""
+defined_vars = witchery.find_defined_variables(code)
+print(defined_vars)
+# Output: {'x', 'y', 'z'}
 
-person_initial = db.define_table(
-    "person",
-    Field(
-        "name",
-        "string",
-        notnull=True,
-    ),
-    Field("age", "integer", default=18),
-    Field("float", "decimal(2,3)"),
-    Field("nicknames", "list:string"),
-    Field("obj", "json"),
-)
+# Example 2: Remove specific variables from code
+code = """
+x = 5
+y = 10
+db = Database()
+"""
+new_code = witchery.remove_specific_variables(code, to_remove=["x", "db"])
+print(new_code)
+# Output: "y = 10"
 
-print(
-    generate_sql(
-        db.person, db_type="psql"  # or sqlite, or mysql; Optional with fallback to currently using database type.
-    )
-)
-```
+# Example 3: Check if code has local imports
+code = "from my_module import my_function"
+has_local_imports = witchery.has_local_imports(code)
+print(has_local_imports)
+# Output: False
 
-```sql
-CREATE TABLE person
-(
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    name      VARCHAR(512),
-    age       INTEGER,
-    float     NUMERIC(2, 3),
-    nicknames TEXT,
-    obj       TEXT
-);
-```
+code = "from .my_module import my_function"
+has_local_imports = witchery.has_local_imports(code)
+print(has_local_imports)
+# Output: True
 
-```python
-person_new = db.define_table(
-    "person",
-    Field(
-        "name",
-        "text",
-    ),
-    Field("birthday", "datetime"),
-    redefine=True
-)
+# Example 4: Remove import of a specific module from code
+code = """
+import module_name
+from module_name import something
+x = module_name.function()
+"""
+new_code = witchery.remove_import(code, module_name="module_name")
+print(new_code)
+# Output: "x = module_name.function()"
 
-generate_sql(
-    person_initial,
-    person_new,
-    db_type="psql"
-)
-```
+# do note that this only removes the import, NOT any function calls to it!
 
-```sql
-ALTER TABLE person ADD "name__tmp" TEXT;
-UPDATE person SET "name__tmp"=name;
-ALTER TABLE person DROP COLUMN name;
-ALTER TABLE person ADD name TEXT;
-UPDATE person SET name="name__tmp";
-ALTER TABLE person DROP COLUMN "name__tmp";
-ALTER TABLE person ADD birthday TIMESTAMP;
-ALTER TABLE person DROP COLUMN age;
-ALTER TABLE person DROP COLUMN float;
-ALTER TABLE person DROP COLUMN nicknames;
-ALTER TABLE person DROP COLUMN obj;
+# Example 5: Remove all local imports from code
+code = """
+from .local_module import something
+from another_module import func
+
+def my_function():
+    return func(), something()
+"""
+new_code = witchery.remove_local_imports(code)
+print(new_code)
+# Output:
+# from another_module import func
+# 
+# def my_function():
+#     return func(), something()
+
+# do note that this only removes the imports, NOT any function calls to it!
+
+# Example 6: Find the function to call based on the function call hint
+code = """
+def my_function():
+    return 42
+
+x = my_function()
+"""
+function_to_call = witchery.find_function_to_call(code, "my_function()")  # can be with or without parentheses
+print(function_to_call)
+# Output: "my_function"
+
+# will be None if the function does not exist in the specified code.
+
+# Example 7: Extract function name and arguments from function call string
+function_call = "my_function(x, y, 'z')"
+function_name, args = witchery.extract_function_details(function_call)
+print(function_name)
+# Output: "my_function"
+print(args)
+# Output: ['x', 'y', "'z'"]
+
+# Example 8: Add a function call to code
+code = """
+def add(a, b):
+    return a + b
+
+result = add(3, 5)
+"""
+new_code = witchery.add_function_call(code, function_call="add(x, y)")
+print(new_code)
+# Output: 
+# def add(a, b):
+#     return a + b
+# add(x, y)
+# result = add(3, 5)
+
+# The call will be placed right below the function definition.
+
+# Example 9: Find used and defined variables in code
+code = """
+x = 5
+y = x + z
+result = x * y
+"""
+used_vars, defined_vars = witchery.find_variables(code, with_builtins=False)
+print(used_vars)
+# Output: {'x', 'y', 'z'}
+print(defined_vars)
+# Output: {'x', 'y', 'result'}  # will be a lot longer if with_builtins = True
+
+# Example 10: Find missing variables in code
+code = """
+x = 5
+result = x * y
+"""
+missing_vars = witchery.find_missing_variables(code)
+print(missing_vars)
+# Output: {'y'}
+
+# Example 11: Generate magic code to define missing variables
+missing_vars = {'y', 'z'}
+magic_code = witchery.generate_magic_code(missing_vars)
+print(magic_code)
+# Output: """
+# class Empty:
+#     ...
+#
+# empty = Empty()
+# y = empty; z = empty;
+# """
+
 ```
 
 ## License
 
-`pydal2sql` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+`witchery` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
