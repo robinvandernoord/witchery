@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.2 (2023-11-09)
+
+### Fix
+
+* Improved variable finding ([`85e6498`](https://github.com/robinvandernoord/witchery/commit/85e6498bdef627134858bc60c7d7a6f89b9424ec))
+
 ## v0.1.1 (2023-07-31)
 
 ### Fix
