@@ -1,10 +1,16 @@
 import textwrap
 
 from src.witchery import (
+    add_function_call,
+    extract_function_details,
+    find_defined_variables,
+    find_function_to_call,
     find_missing_variables,
     generate_magic_code,
-    remove_specific_variables, find_defined_variables, has_local_imports, remove_import, remove_local_imports,
-    find_function_to_call, extract_function_details, add_function_call,
+    has_local_imports,
+    remove_import,
+    remove_local_imports,
+    remove_specific_variables,
 )
 
 CODE_STRING = """
@@ -34,6 +40,14 @@ for table in []:
 
 if toble := True:
    print(toble)
+   
+# subscript:
+driver_args: dict[str, int] = {}
+
+more_args["one"] = 2
+
+# tuple:
+tuple_one, tuple_two = 1, 2
 """
 
 
@@ -41,7 +55,7 @@ def test_find_defined():
     # defined: `variable = value` in code (so not imported or in loop etc.)
     all_variables = find_defined_variables(CODE_STRING)
 
-    assert all_variables == {"a", "b", "d", "f", "db"}
+    assert all_variables == {"a", "b", "d", "f", "db", "driver_args", "tuple_one", "tuple_two", "more_args"}
 
 
 def test_find_missing():
@@ -56,10 +70,12 @@ def test_find_local_imports():
 
 
 def test_remove_import():
-    code = textwrap.dedent("""
+    code = textwrap.dedent(
+        """
     import fake_module
     import typing
-    """)
+    """
+    )
 
     new_code = remove_import(code, "fake_module")
 
@@ -68,12 +84,14 @@ def test_remove_import():
 
 
 def test_remove_local_imports():
-    code = textwrap.dedent("""
+    code = textwrap.dedent(
+        """
     from .local import method1, method2
     from .other import method3
     from typing import *
     from math import floor
-    """)
+    """
+    )
     new_code = remove_local_imports(code)
 
     assert "local" not in new_code
@@ -83,13 +101,15 @@ def test_remove_local_imports():
 
 
 def test_find_function_to_call():
-    code = textwrap.dedent("""
+    code = textwrap.dedent(
+        """
     def main(arg1, arg2):
         ...
     
     def other(arg: int):
         ...
-    """)
+    """
+    )
 
     assert find_function_to_call(code, "main") == "main"
     assert find_function_to_call(code, "main()") == "main"
@@ -108,32 +128,41 @@ def test_extract_function_details():
     assert extract_function_details("my_method()", default_args=["arg1"]) == ("my_method", ["arg1"])
 
     assert extract_function_details("my_method(first, 'second')", default_args=[]) == (
-    "my_method", ["first", "'second'"])
+        "my_method",
+        ["first", "'second'"],
+    )
     assert extract_function_details("my_method(first, 'second')", default_args=["arg1"]) == (
-    "my_method", ["first", "'second'"])
+        "my_method",
+        ["first", "'second'"],
+    )
 
     assert extract_function_details("syntax_error(") == (None, [])
 
 
 def test_add_function_call():
-    code = textwrap.dedent("""
+    code = textwrap.dedent(
+        """
     def main(arg: str):
         print('hi', arg)
 
     print('the end')
-    """)
+    """
+    )
 
-    target = textwrap.dedent("""
+    target = textwrap.dedent(
+        """
     def main(arg: str):
         print('hi', arg)
     main('World')
     print('the end')
-    """)
+    """
+    )
 
     assert add_function_call(code, "main", args=["'World'"]).strip() == target.strip()
 
     # duplicate functions:
-    code = textwrap.dedent("""
+    code = textwrap.dedent(
+        """
     def main(arg: str):
         print('hi', arg)
 
@@ -141,9 +170,11 @@ def test_add_function_call():
         print('another one')
 
     print('the end')
-    """)
+    """
+    )
 
-    target = textwrap.dedent("""
+    target = textwrap.dedent(
+        """
     def main(arg: str):
         print('hi', arg)
     main('World')
@@ -152,7 +183,8 @@ def test_add_function_call():
         print('another one')
     main('World')
     print('the end')
-    """)
+    """
+    )
 
     assert add_function_call(code, "main", args=["'World'"], multiple=True).strip() == target.strip()
 

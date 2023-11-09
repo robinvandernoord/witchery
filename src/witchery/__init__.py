@@ -13,6 +13,7 @@ import contextlib
 import importlib
 import textwrap
 import typing
+import warnings
 from _ast import NamedExpr
 
 BUILTINS = set(builtins.__dict__.keys())
@@ -52,10 +53,30 @@ def find_defined_variables(code_str: str) -> set[str]:
     variables: set[str] = set()
 
     def collect_definitions(node: ast.AST) -> None:
-        if isinstance(node, ast.Assign):
-            node_targets = typing.cast(list[ast.Name], node.targets)
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            # only look for variable definitions here!
+            return
 
-            variables.update(target.id for target in node_targets)
+        # define function that can be recursed:
+        def handle_elts(elts: typing.Iterable[ast.expr]) -> None:
+            for node in elts:
+                # with contextlib.suppress(Exception):
+                try:
+                    if isinstance(node, ast.Subscript):
+                        node = node.value
+
+                    if isinstance(node, ast.Tuple):
+                        # recurse
+                        handle_elts(node.elts)
+                        continue
+
+                    variables.add(getattr(node, "id"))
+
+                except Exception as e:  # pragma: no cover
+                    warnings.warn("Something went wrong trying to find variables.", source=e)
+                    # raise
+
+        handle_elts(node.targets if hasattr(node, "targets") else [node.target])
 
     traverse_ast(tree, collect_definitions)
     return variables
@@ -301,10 +322,27 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
                 defined_variables.discard(node.id)
 
     def collect_definitions(node: ast.AST) -> None:
-        if isinstance(node, ast.Assign):
-            node_targets = typing.cast(list[ast.Name], node.targets)
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            return
 
-            defined_variables.update(target.id for target in node_targets)
+        def handle_elts(elts: list[ast.expr]) -> None:
+            for node in elts:
+                # with contextlib.suppress(Exception):
+                try:
+                    if isinstance(node, ast.Subscript):
+                        node = node.value
+
+                    if isinstance(node, ast.Tuple):
+                        # recurse
+                        handle_elts(node.elts)
+                        continue
+
+                    defined_variables.add(getattr(node, "id"))
+                except Exception as e:  # pragma: no cover
+                    warnings.warn("Something went wrong trying to find variables.", source=e)
+                    # raise
+
+        handle_elts(node.targets if hasattr(node, "targets") else [node.target])
 
     def collect_imports(node: ast.AST) -> None:
         if isinstance(node, ast.Import):
