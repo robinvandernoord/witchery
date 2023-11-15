@@ -11,6 +11,7 @@ from src.witchery import (
     remove_import,
     remove_local_imports,
     remove_specific_variables,
+    find_variables,
 )
 
 CODE_STRING = """

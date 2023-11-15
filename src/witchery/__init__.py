@@ -11,10 +11,14 @@ import ast
 import builtins
 import contextlib
 import importlib
+import inspect
 import textwrap
 import typing
 import warnings
 from _ast import NamedExpr
+from typing import Any
+
+from typing_extensions import Self
 
 BUILTINS = set(builtins.__dict__.keys())
 
@@ -350,11 +354,13 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
                 imported_names.add(alias.name)
         elif isinstance(node, ast.ImportFrom) and node.module:
             module_name = node.module
-            imported_module = importlib.import_module(module_name)
-            if node.names[0].name == "*":
-                imported_names.update(name for name in dir(imported_module) if not name.startswith("_"))
-            else:
-                imported_names.update(alias.asname or alias.name for alias in node.names)
+            with contextlib.suppress(ImportError):
+                imported_module = importlib.import_module(module_name)
+
+                if node.names[0].name == "*":
+                    imported_names.update(name for name in dir(imported_module) if not name.startswith("_"))
+                else:
+                    imported_names.update(alias.asname or alias.name for alias in node.names)
 
     def collect_imported_names(node: ast.AST) -> None:
         if isinstance(node, ast.ImportFrom) and node.module:
@@ -396,6 +402,46 @@ def find_missing_variables(code: str) -> set[str]:
     return {var for var in used_variables if var not in defined_variables}
 
 
+T = typing.TypeVar("T", bound=Any)
+
+
+class Empty:
+    # todo: overload more methods
+    # class that does absolutely nothing
+    # but can be accessed like an object (obj.something.whatever)
+    # or a dict[with][some][keys]
+    def __init__(self, *_: Any, **__: Any) -> None:
+        ...
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __getattribute__(self, _: str) -> Self:
+        return self
+
+    def __getitem__(self, _: str) -> Self:
+        return self
+
+    def __iter__(self) -> typing.Generator[Self, Any, None]:
+        # fix set(empty)
+        yield self  # once
+
+    def __get__(self, *_: Any) -> Self:
+        return self
+
+    def __call__(self, *_: Any, **__: Any) -> Self:
+        return self
+
+    def __str__(self) -> str:
+        return ""
+
+    def __repr__(self) -> str:
+        return ""
+
+    def __add__(self, other: T) -> T:
+        return other
+
+
 def generate_magic_code(missing_vars: set[str]) -> str:
     """
     Generates code to define missing variables with a do-nothing object.
@@ -409,33 +455,12 @@ def generate_magic_code(missing_vars: set[str]) -> str:
     Returns:
         str: The generated code.
     """
-    extra_code = """
-        class Empty:
-            # class that does absolutely nothing
-            # but can be accessed like an object (obj.something.whatever)
-            # or a dict[with][some][keys]
-            def __getattribute__(self, _):
-                return self
+    extra_code = inspect.getsource(Empty)
 
-            def __getitem__(self, _):
-                return self
+    extra_code += "\n\n"
+    extra_code += "empty = Empty()"
+    extra_code += "\n"
 
-            def __get__(self):
-                return self
-
-            def __call__(self, *_):
-                return self
-
-            def __str__(self):
-                return ''
-
-            def __repr__(self):
-                return ''
-
-        # todo: overload more methods
-        empty = Empty()
-            \n
-        """
     for variable in missing_vars:
         extra_code += f"{variable} = empty; "
 
