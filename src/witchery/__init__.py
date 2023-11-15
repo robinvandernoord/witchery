@@ -455,7 +455,14 @@ def generate_magic_code(missing_vars: set[str]) -> str:
     Returns:
         str: The generated code.
     """
-    extra_code = inspect.getsource(Empty)
+    extra_code = (
+        "import typing; from typing import Any; "
+        "from typing_extensions import Self; "
+        "T = typing.TypeVar('T', bound=Any); "
+        "\n"
+    )
+
+    extra_code += inspect.getsource(Empty)
 
     extra_code += "\n\n"
     extra_code += "empty = Empty()"
