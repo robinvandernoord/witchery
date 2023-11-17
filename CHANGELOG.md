@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.2.0 (2023-11-17)
+
+### Feature
+
+* Add option to remove if False/if typing.TYPE_CHECKING blocks (remove_if_falsey_blocks) ([`44699d1`](https://github.com/robinvandernoord/witchery/commit/44699d1523d79e56363222f30391346ca17c6456))
+
 ## v0.1.3 (2023-11-17)
 
 ### Fix
