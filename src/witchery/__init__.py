@@ -154,26 +154,47 @@ def has_local_imports(code: str) -> bool:
     return any(visitor.visit(node) for node in ast.walk(tree))
 
 
-def remove_import(code: str, module_name: typing.Optional[str]) -> str:
+class ImportRemover(ast.NodeTransformer):
     """
-    Removes the import of a specific module from the given code.
+    Node visitor to remove imports (even in blocks).
+    """
+
+    def __init__(self, module_name: str) -> None:
+        """
+        Set the module name to remove.
+        """
+        self.module_name = module_name
+
+    def visit_Import(self, node: ast.Import) -> ast.Import | ast.Pass:
+        """
+        Removes `import module_name`.
+        """
+        node.names = [alias for alias in node.names if alias.name != self.module_name]
+        return node if node.names else ast.Pass()
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom | ast.Pass:
+        """
+        Removes `from module_name import xyz`.
+        """
+        if node.module == self.module_name:
+            return ast.Pass()
+        return node
+
+
+def remove_import(code: str, module_name: str) -> str:
+    """
+    Removes the import of a specific module from the given code, including inner scopes.
 
     Args:
         code (str): The code from which to remove the import.
-        module_name (str, optional): The name of the module to remove.
+        module_name (str): The name of the module to remove.
 
     Returns:
         str: The code after removing the import of the specified module.
     """
     tree = ast.parse(code)
-    new_body = [
-        node
-        for node in tree.body
-        if not isinstance(node, (ast.Import, ast.ImportFrom))
-        or (not isinstance(node, ast.Import) or all(alias.name != module_name for alias in node.names))
-        and (not isinstance(node, ast.ImportFrom) or node.module != module_name)
-    ]
-    tree.body = new_body
+    transformer = ImportRemover(module_name)
+    tree = transformer.visit(tree)
     return ast.unparse(tree)
 
 
@@ -317,6 +338,9 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
     loop_variables: set[str] = set()
 
     def collect_variables(node: ast.AST) -> None:
+        """
+        Collect or remove variables based on load/store and delete statements.
+        """
         if isinstance(node, ast.Name):
             if isinstance(node.ctx, ast.Load):
                 used_variables.add(node.id)
@@ -326,10 +350,16 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
                 defined_variables.discard(node.id)
 
     def collect_definitions(node: ast.AST) -> None:
+        """
+        Collect variable definitions via other ways.
+        """
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             return
 
         def handle_elts(elts: list[ast.expr]) -> None:
+            """
+            Handle recursive definitions such as tuples.
+            """
             for node in elts:
                 # with contextlib.suppress(Exception):
                 try:
@@ -341,7 +371,8 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
                         handle_elts(node.elts)
                         continue
 
-                    defined_variables.add(getattr(node, "id"))
+                    if var := getattr(node, "id", None):
+                        defined_variables.add(var)
                 except Exception as e:  # pragma: no cover
                     warnings.warn("Something went wrong trying to find variables.", source=e)
                     # raise
@@ -349,6 +380,9 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
         handle_elts(node.targets if hasattr(node, "targets") else [node.target])
 
     def collect_imports(node: ast.AST) -> None:
+        """
+        Get defined variables via imports.
+        """
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imported_names.add(alias.name)
@@ -363,15 +397,24 @@ def find_variables(code_str: str, with_builtins: bool = True) -> tuple[set[str],
                     imported_names.update(alias.asname or alias.name for alias in node.names)
 
     def collect_imported_names(node: ast.AST) -> None:
+        """
+        Get defined variables via import from.
+        """
         if isinstance(node, ast.ImportFrom) and node.module:
             for alias in node.names:
                 imported_names.add(alias.asname or alias.name)
 
     def collect_loop_variables(node: ast.AST) -> None:
+        """
+        Get variables defined in a loop (for var in ...).
+        """
         if isinstance(node, ast.For) and isinstance(node.target, ast.Name):
             loop_variables.add(node.target.id)
 
     def collect_everything(node: ast.AST) -> None:
+        """
+        Run the functions above to get all variables from the code.
+        """
         collect_variables(node)
         collect_definitions(node)
         collect_imported_names(node)
@@ -406,39 +449,80 @@ T = typing.TypeVar("T", bound=Any)
 
 
 class Empty:
+    """
+    Class that does absolutely nothing.
+
+    but can be accessed like an object (obj.something.whatever)
+    or a dict[with][some][keys]
+    """
+
     # todo: overload more methods
-    # class that does absolutely nothing
-    # but can be accessed like an object (obj.something.whatever)
-    # or a dict[with][some][keys]
+
     def __init__(self, *_: Any, **__: Any) -> None:
-        ...
+        """
+        Can be passed any vars.
+        """
 
     def __bool__(self) -> bool:
+        """
+        An `empty` object is False so it can be `or`-ed.
+        """
         return False
 
     def __getattribute__(self, _: str) -> Self:
+        """
+        Accessing .something.
+        """
         return self
 
     def __getitem__(self, _: str) -> Self:
+        """
+        Accessing ['something'].
+        """
         return self
 
     def __iter__(self) -> typing.Generator[Self, Any, None]:
+        """
+        Allows `for _ in Empty():`.
+
+        Only yields one item, itself.
+        """
         # fix set(empty)
         yield self  # once
 
     def __get__(self, *_: Any) -> Self:
+        """
+        Called when empty is set as a property on another class.
+        """
         return self
 
     def __call__(self, *_: Any, **__: Any) -> Self:
+        """
+        When an instance gets called.
+
+        empty = Empty()
+        empty()
+        """
         return self
 
     def __str__(self) -> str:
+        """
+        Empty string represent.
+        """
         return ""
 
     def __repr__(self) -> str:
+        """
+        Empty string represent.
+        """
         return ""
 
     def __add__(self, other: T) -> T:
+        """
+        Overlaods +.
+
+        empty + [] = []
+        """
         return other
 
 
