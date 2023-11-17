@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.3 (2023-11-17)
+
+### Fix
+
+* Better import removal + docs ([`64b918b`](https://github.com/robinvandernoord/witchery/commit/64b918b4cb58b3625b89f709aa335e695558154d))
+
 ## v0.1.2 (2023-11-09)
 
 ### Fix
