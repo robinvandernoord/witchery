@@ -1,5 +1,7 @@
 import textwrap
 
+import pytest
+
 from src.witchery import (
     add_function_call,
     extract_function_details,
@@ -11,7 +13,7 @@ from src.witchery import (
     remove_import,
     remove_local_imports,
     remove_specific_variables,
-    find_variables,
+    remove_if_falsey_blocks,
 )
 
 CODE_STRING = """
@@ -82,6 +84,10 @@ def test_remove_import():
         import another_fake
     """
     )
+
+    with pytest.warns(Warning):
+        new_code = remove_import(code, "")
+        assert new_code == code
 
     new_code = remove_import(code, "fake_module")
 
@@ -230,3 +236,50 @@ def test_remove_specific_variables():
     assert "DAL" not in new_code
     assert "def database" not in new_code
     assert "my_database" in new_code
+
+
+def test_remove_if_falsey_blocks():
+    before = textwrap.dedent("""
+    import typing
+    from typing import TYPE_CHECKING
+    
+    if True:
+        print('first')
+    
+    if 1 + 2 == 4:
+        print('second')
+    
+    if False:
+        print('third')
+    
+    if TYPE_CHECKING:
+        print('fourth')
+    else:
+        print('fifth')
+    
+    # very hard:
+    
+    if not TYPE_CHECKING:
+        print('sixth')
+    else:
+        print('seventh')
+        
+    
+    if True:
+        if typing.TYPE_CHECKING:
+            print('eight')
+    
+    """)
+
+    after = remove_if_falsey_blocks(before)
+
+    print(after)
+
+    assert "first" in after
+    assert "second" in after
+    assert "third" not in after
+    assert "fourth" not in after
+    assert "fifth" in after
+    # assert "sixth" in after
+    # assert "seventh" not in after
+    # assert "eight" not in after

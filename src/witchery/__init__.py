@@ -74,7 +74,8 @@ def find_defined_variables(code_str: str) -> set[str]:
                         handle_elts(node.elts)
                         continue
 
-                    variables.add(getattr(node, "id"))
+                    if var := getattr(node, "id", None):
+                        variables.add(var)
 
                 except Exception as e:  # pragma: no cover
                     warnings.warn("Something went wrong trying to find variables.", source=e)
@@ -84,6 +85,40 @@ def find_defined_variables(code_str: str) -> set[str]:
 
     traverse_ast(tree, collect_definitions)
     return variables
+
+
+class IfBlockRemover(ast.NodeTransformer):
+    """
+    Remove if False or if typing.TYPE_CHECKING.
+    """
+
+    def visit_If(self, node: ast.If) -> ast.AST | None:
+        """
+        Modify if statements.
+        """
+        if isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING":
+            new_node = ast.copy_location(ast.Pass(), node)
+            return ast.copy_location(ast.If(test=node.test, body=[new_node], orelse=node.orelse), node)
+
+        if (isinstance(node.test, ast.Constant) and node.test.value is False) or (
+            isinstance(node.test, ast.Attribute)
+            and isinstance(node.test.value, ast.Name)
+            and node.test.value.id == "typing"
+            and node.test.attr == "TYPE_CHECKING"
+        ):
+            return None
+
+        return self.generic_visit(node)
+
+
+def remove_if_falsey_blocks(code: str) -> str:
+    """
+    Remove if False or if typing.TYPE_CHECKING.
+    """
+    tree = ast.parse(code)
+    remover = IfBlockRemover()
+    new_tree = remover.visit(tree)
+    return ast.unparse(new_tree)
 
 
 def remove_specific_variables(code: str, to_remove: typing.Iterable[str] = ("db", "database")) -> str:
@@ -192,6 +227,11 @@ def remove_import(code: str, module_name: str) -> str:
     Returns:
         str: The code after removing the import of the specified module.
     """
+    if not module_name:
+        # nothing to remove
+        warnings.warn("`remove_import` called without module name!")
+        return code
+
     tree = ast.parse(code)
     transformer = ImportRemover(module_name)
     tree = transformer.visit(tree)
