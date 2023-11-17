@@ -11,6 +11,7 @@ from src.witchery import (
     remove_import,
     remove_local_imports,
     remove_specific_variables,
+    find_variables,
 )
 
 CODE_STRING = """
@@ -74,6 +75,11 @@ def test_remove_import():
         """
     import fake_module
     import typing
+    
+    from third import fourth
+    
+    if False:
+        import another_fake
     """
     )
 
@@ -81,6 +87,17 @@ def test_remove_import():
 
     assert "fake_module" not in new_code
     assert "import typing" in new_code
+
+    new_code = remove_import(code, "another_fake")
+    assert "another_fake" not in new_code
+    assert "import typing" in new_code
+    assert "if" in new_code
+    assert "pass" in new_code
+
+    new_code = remove_import(code, "third")
+
+    assert "third" not in new_code
+    assert "fourth" not in new_code
 
 
 def test_remove_local_imports():
