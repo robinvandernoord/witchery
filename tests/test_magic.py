@@ -10,10 +10,10 @@ from src.witchery import (
     find_missing_variables,
     generate_magic_code,
     has_local_imports,
+    remove_if_falsey_blocks,
     remove_import,
     remove_local_imports,
     remove_specific_variables,
-    remove_if_falsey_blocks,
 )
 
 CODE_STRING = """

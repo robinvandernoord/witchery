@@ -6,7 +6,6 @@ This library has methods to guess which variables are unknown and to potentially
 #
 # SPDX-License-Identifier: MIT
 
-
 import ast
 import builtins
 import contextlib
@@ -604,7 +603,7 @@ def find_imported_modules(code_str: str) -> set[str]:
             # import typedal as dal
             for alias in node.names:
                 # Get base module name (before first dot)
-                base_module = alias.name.split('.')[0]
+                base_module = alias.name.split(".")[0]
                 imported_modules.add(base_module)
 
         elif isinstance(node, ast.ImportFrom):
@@ -612,7 +611,7 @@ def find_imported_modules(code_str: str) -> set[str]:
             # from typedal.submodule import Thing
             if node.module:
                 # Get base module name (before first dot)
-                base_module = node.module.split('.')[0]
+                base_module = node.module.split(".")[0]
                 imported_modules.add(base_module)
 
     # Traverse the AST

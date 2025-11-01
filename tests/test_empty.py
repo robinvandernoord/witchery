@@ -26,5 +26,4 @@ def test_empty():
 
     assert not empty()
 
-    assert not empty.some['nested']().things
-
+    assert not empty.some["nested"]().things
