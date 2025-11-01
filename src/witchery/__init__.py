@@ -566,6 +566,62 @@ class Empty:
         return other
 
 
+def find_imported_modules(code_str: str) -> set[str]:
+    """
+    Finds all imported module names in the given code string.
+
+    Args:
+        code_str (str): The code string to parse for imports.
+
+    Returns:
+        set[str]: A set containing all imported module names (base module only).
+
+    Examples:
+        >>> find_imported_modules("import typedal")
+        {'typedal'}
+        >>> find_imported_modules("import typedal as dal")
+        {'typedal'}
+        >>> find_imported_modules("from typedal import Something")
+        {'typedal'}
+        >>> find_imported_modules("from typedal.submodule import Thing")
+        {'typedal'}
+    """
+    code_str = textwrap.dedent(code_str)
+
+    try:
+        tree: ast.Module = ast.parse(code_str)
+    except SyntaxError:
+        return set()
+
+    imported_modules: set[str] = set()
+
+    def collect_imports(node: ast.AST) -> None:
+        """
+        Collect imported module names from import statements.
+        """
+        if isinstance(node, ast.Import):
+            # import typedal
+            # import typedal as dal
+            for alias in node.names:
+                # Get base module name (before first dot)
+                base_module = alias.name.split('.')[0]
+                imported_modules.add(base_module)
+
+        elif isinstance(node, ast.ImportFrom):
+            # from typedal import Something
+            # from typedal.submodule import Thing
+            if node.module:
+                # Get base module name (before first dot)
+                base_module = node.module.split('.')[0]
+                imported_modules.add(base_module)
+
+    # Traverse the AST
+    for node in ast.walk(tree):
+        collect_imports(node)
+
+    return imported_modules
+
+
 def generate_magic_code(missing_vars: set[str]) -> str:
     """
     Generates code to define missing variables with a do-nothing object.
