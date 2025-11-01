@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.0 (2025-11-01)
+
+### Feature
+
+* Find_imported_modules function ([`8f58195`](https://github.com/robinvandernoord/witchery/commit/8f58195126260e5e0bf8f4b1ee6a9f21278832c8))
+
 ## v0.2.0 (2023-11-17)
 
 ### Feature
