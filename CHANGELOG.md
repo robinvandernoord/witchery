@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.1 (2026-01-14)
+
+### Documentation
+
+* Mark support for newer python versions ([`1d19858`](https://github.com/robinvandernoord/witchery/commit/1d19858973e3dbf759dfd9cedcc084407079b40b))
+
 ## v0.3.0 (2025-11-01)
 
 ### Feature
