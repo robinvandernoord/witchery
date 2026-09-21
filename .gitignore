@@ -8,3 +8,4 @@ build/
 .coverage
 coverage.json
 .env
+uv.lock
